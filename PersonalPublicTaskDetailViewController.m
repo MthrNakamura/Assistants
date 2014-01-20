@@ -8,6 +8,10 @@
 
 #import "PersonalPublicTaskDetailViewController.h"
 #import "PublicTasksViewController.h"
+#import "TopViewController.h"
+
+#import "AsyncURLConnection.h"
+#import "MBProgressHUD.h"
 
 @interface PersonalPublicTaskDetailViewController ()
 
@@ -28,11 +32,18 @@
 {
     [super viewDidLoad];
 
+    
+    // デリゲートを取得
+    delegate = [UIApplication sharedApplication].delegate;
+    
     // Uncomment the following line to preserve selection between presentations.
     // self.clearsSelectionOnViewWillAppear = NO;
  
     // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
     // self.navigationItem.rightBarButtonItem = self.editButtonItem;
+    
+    // タブバーデリゲートの設定
+    //self.tabBarController.delegate = self;
     
     // アラートを表示していない状態に設定
     showingAlert = NO;
@@ -46,6 +57,14 @@
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
 }
+
+// **************************************
+//          ビューが切り替わった時
+// **************************************
+//- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+//{
+//    NSLog(@"switched");
+//}
 
 #pragma mark - Table view data source
 
@@ -73,7 +92,7 @@
             
         case SECTION_TASK_PPTD:
             
-            return NUM_CELLS_IN_TASK;
+            return NUM_CELLS_IN_TASK_PPTD;
             
         default:
             
@@ -98,18 +117,17 @@
 {
     // *** ユーザー情報を設定 ***
     // 画像
-    UIImage *image =  [UIImage imageNamed:[self.userData objectForKey:@"imageUrl"]];
-    [self.userImage setImage:image];
+    [self.userImage setImage:[UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[self.userData objectForKey:USER_PROP_PHOTO]]]]];
     // 名前
-    [self.userName setText:[self.userData objectForKey:@"name"]];
+    [self.userName setText:[self.userData objectForKey:USER_PROP_NAME]];
     
     // *** タスク情報を設定 ***
     // タイトル
-    [self.taskTitle setText:[self.taskData objectForKey:KEY_TITLE]];
+    [self.taskTitle setText:[self.taskData objectForKey:TASK_TITLE]];
     // 期限
-    [self.taskLimit setText:[self.taskData objectForKey:KEY_LIMIT]];
+    [self.taskLimit setText:([[self.taskData objectForKey:TASK_LIMIT] isEqualToString:@"none"])? @"期限指定なし":[self.taskData objectForKey:TASK_LIMIT]];
     // メモ
-    [self.taskMemo setText:[self.taskData objectForKey:KEY_MEMO]];
+    [self.taskMemo setText:[self.taskData objectForKey:TASK_MEMO]];
     
 }
 
@@ -122,12 +140,114 @@
         return ;
     
     if (buttonIndex == 1) {
-        // はい
+        
         showingAlert = NO;
+        
+        // はい
         UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"アシスト" message:@"このタスクをアシストしました" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
         [alert show];
+        
+        // サーバーにアシストした情報を伝える
+        if ([self sendAssistRequest:[self.taskData objectForKey:TASK_ID] userId:[self.userData objectForKey:@"userId"]]) {
+            
+            // ローカルデータにも反映
+            NSString *assist = [self.userData objectForKey:@"assist"];
+            assist = [assist stringByAppendingString:[NSString stringWithFormat:@"%@:", [self.taskData objectForKey:TASK_ID]]];
+            [self.userData setValue:assist forKey:@"assist"];
+            delegate.user = [NSMutableDictionary dictionaryWithDictionary:self.userData];
+            
+            // アシストしたタスクを一時保存
+            [delegate.assistingTask addObject:self.taskData];
+            [delegate.assistingUser addObject:self.userData];
+            delegate.hasAssisted = YES;
+            
+        }
     }
 }
+
+
+// **************************************
+//          アシストリクエストを送信
+// **************************************
+- (BOOL)sendAssistRequest:(NSString *)taskId userId:(NSString *)userId
+{
+    __block BOOL result = YES;
+    
+    // *** ダイアログを表示 ***
+    MBProgressHUD *progress = [[MBProgressHUD alloc]initWithView:self.view];
+    [progress setLabelText:@"アシスト中..."];
+    [self.view addSubview:progress];
+    [progress show:YES];
+    
+    NSURLRequest *request = [self createAssistRequest:taskId userId:userId];
+    AsyncURLConnection *conn = [[AsyncURLConnection alloc]initWithRequest:request timeoutSec:TIMEOUT_INTERVAL completeBlock:^(id conn, NSData *data) {
+        
+        // *** ダイアログを隠す ***
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        // *** レスポンスをチェック ***
+        NSDictionary *response = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
+        NSLog(@"assist: %@", response);
+        if (![[response objectForKey:@"errorCode"]isEqualToString:NO_ERROR]) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"アシスト" message:@"アシストに失敗しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+            result = NO;
+            return ;
+        }
+        
+        // *** ローカルのユーザーアシスト情報を更新 ***
+        NSString *assist = [delegate.user objectForKey:USER_PROP_ASSIST];
+        assist = [assist stringByAppendingString:[NSString stringWithFormat:@"%@:", taskId]];
+        [delegate.user setValue:assist forKey:USER_PROP_ASSIST];
+        
+    } progressBlock:nil errorBlock:^(id conn, NSError *error) {
+        
+        // *** ダイアログを隠す ***
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        
+        // タイムアウトが発生
+        if ( error.code==NSURLErrorTimedOut ) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"タイムアウトが発生しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        // 通信エラー
+        else {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"通信エラーが発生しました。通信環境の良い場所で再度お試しください。。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        
+    }];
+    
+    
+    [conn performRequest];
+    [conn join];
+    
+    return YES;
+}
+
+// **************************************
+//          アシストリクエストを作成
+// **************************************
+- (NSURLRequest *)createAssistRequest:(NSString *)taskId userId:(NSString *)userId
+{
+    // リクエストURLを設定
+    NSURL *url = [[NSURL alloc]initWithString:ASSIST_API];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    
+    // メソッドを設定
+    [request setHTTPMethod:@"POST"];
+    
+    // パラメータを設定
+    NSString *body = [NSString stringWithFormat:@"taskId=%@&userId=%@", [self.taskData objectForKey:TASK_ID], [self.userData objectForKey:USER_PROP_ID]];
+    [request setHTTPBody:[body dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    return request;
+    
+}
+
 
 //- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 //{
@@ -203,9 +323,21 @@
 // ****************************************
 - (IBAction)addAssistingTask:(id)sender {
     
-    showingAlert = YES;
-    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"アシスト" message:@"このタスクをアシストしますか" delegate:self cancelButtonTitle:@"やめる" otherButtonTitles:@"はい", nil];
-    [alert show];
+    // すでにアシストしていないか検査
+    NSString *taskId = [self.taskData objectForKey:TASK_ID];
+    NSString *assist = [delegate.user objectForKey:@"assist"];
+    
+    NSRange range = [assist rangeOfString:taskId];
+    if (range.location != NSNotFound) {
+        showingAlert = NO;
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"アシスト" message:@"すでにアシストしています" delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+        [alert show];
+    }
+    else {
+        showingAlert = YES;
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"アシスト" message:@"このタスクをアシストしますか" delegate:self cancelButtonTitle:@"やめる" otherButtonTitles:@"はい", nil];
+        [alert show];
+    }
     
 }
 @end

@@ -12,12 +12,12 @@
 
 @interface TaskCell : UITableViewCell
 
+@property BOOL isChecked;
 
 @property (strong, nonatomic) IBOutlet UIButton *checkBox;
 @property (strong, nonatomic) IBOutlet UILabel *taskTitle;
 
 
-
-- (IBAction)didCheckedBOx:(id)sender;
+- (IBAction)didCheckedCheckbox:(id)sender;
 
 @end

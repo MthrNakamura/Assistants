@@ -8,6 +8,12 @@
 
 #import "UserInfoViewController.h"
 #import "PersonalPublicTaskViewController.h"
+#import "TopViewController.h"
+#import "AsyncURLConnection.h"
+#import "AppDelegate.h"
+#import "PersonalPublicTaskDetailViewController.h"
+
+#import "MBProgressHUD.h"
 
 @interface UserInfoViewController ()
 
@@ -36,49 +42,34 @@
  
     // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
     // self.navigationItem.rightBarButtonItem = self.editButtonItem;
-
+    
+    // タブバーデリゲートの設定
+    //self.tabBarController.delegate = self;
+    
+    // テーブルビューの背景を設定
+    self.tableView.backgroundView = [[UIImageView alloc]initWithImage:[UIImage imageNamed:@"background1.jpg"]];
+    
     // *** 表示するユーザー情報を設定 ***
+    
     // ユーザープロフィール画像
-    [self.userImage setImage:[UIImage imageNamed:[self.userInfo objectForKey:@"imageUrl"]]];
+    [self.userImage setImage:[UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[self.userInfo objectForKey:USER_PROP_PHOTO]]]]];
+    
     // ユーザー名
-    [self.userName setText:[self.userInfo objectForKey:@"name"]];
+    [self.userName setText:[self.userInfo objectForKey:USER_PROP_NAME]];
+    
     // スキル
-    NSArray *skills = [self.userInfo objectForKey:@"skill"];
-    for (int i = 0; i < [skills count]; i++) {
-        
-        switch (i) {
-            case 0:
-                
-                [self.skill1 setText:[skills objectAtIndex:i]];
-                
-                break;
-            
-            case 1:
-                
-                [self.skill2 setText:[skills objectAtIndex:i]];
-                
-                break;
-                
-            case 2:
-                
-                [self.skill3 setText:[skills objectAtIndex:i]];
-                
-                break;
-                
-            default:
-                break;
-        }
-        
-    }
+    [self.skill1 setText:([[self.userInfo objectForKey:USER_PROP_SKILL1] isEqualToString:@"none"])?@"なし":[self.userInfo objectForKey:USER_PROP_SKILL1]];
+    [self.skill2 setText:([[self.userInfo objectForKey:USER_PROP_SKILL2] isEqualToString:@"none"])?@"なし":[self.userInfo objectForKey:USER_PROP_SKILL2]];
+    [self.skill3 setText:([[self.userInfo objectForKey:USER_PROP_SKILL3] isEqualToString:@"none"])?@"なし":[self.userInfo objectForKey:USER_PROP_SKILL3]];
     
     // ユーザー説明文
-    [self.detailField setText:[self.userInfo objectForKey:@"detail"]];
+    [self.detailField setText:[self.userInfo objectForKey:USER_PROP_MEMO]];
     
     
     // *** その他の公開タスク一覧 ***
     // 公開タスクリストを取得
     [self getPublicTaskList];
-    numOtherTasks = [publicTasks count];
+    NSUInteger numOtherTasks = [publicTasks count];
     // タスクリストの内容を表示
     for (int i = 0; i < numOtherTasks; i++) {
         // 3つ目以降は別ビューで表示する
@@ -88,19 +79,19 @@
         switch (i) {
             case 0:
                 
-                [self.otherTask1 setText:[[publicTasks objectAtIndex:i]objectForKey:@"title"]];
+                [self.otherTask1 setText:[[publicTasks objectAtIndex:i]objectForKey:TASK_TITLE]];
                 
                 break;
                 
             case 1:
                 
-                [self.otherTask2 setText:[[publicTasks objectAtIndex:i]objectForKey:@"title"]];
+                [self.otherTask2 setText:[[publicTasks objectAtIndex:i]objectForKey:TASK_TITLE]];
                 
                 break;
                 
             case 2:
                 
-                [self.otherTask3 setText:[[publicTasks objectAtIndex:i]objectForKey:@"title"]];
+                [self.otherTask3 setText:[[publicTasks objectAtIndex:i]objectForKey:TASK_TITLE]];
                 
                 break;
                 
@@ -112,8 +103,26 @@
         
     }
     
+    // 電話
+//    if (![self.userInfo objectForKey:@"phone"]) {
+//        [self.btnCall setEnabled:NO];
+//    }
+//    
+//    // メール
+//    if (![self.userInfo objectForKey:@"mail"]) {
+//        [self.btnChat setEnabled:NO];
+//    }
+    
 }
 
+
+// **************************************
+//          ビューが切り替わった時
+// **************************************
+//- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+//{
+//    NSLog(@"switched");
+//}
 
 - (void)didReceiveMemoryWarning
 {
@@ -166,6 +175,14 @@
 // *************************************
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
+    if (indexPath.section == SECTION_OTASK && indexPath.row != 3) {
+        // 他のタスク詳細ビューを表示する
+        PersonalPublicTaskDetailViewController *pptdView = [self.storyboard instantiateViewControllerWithIdentifier:@"PPTDView"];
+        pptdView.taskData = [publicTasks objectAtIndex:indexPath.row];
+        pptdView.userData = self.userInfo;
+        [self.navigationController pushViewController:pptdView animated:YES];
+    }
+    
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 
@@ -182,8 +199,6 @@
         pptView.tasks = publicTasks;
         pptView.userInfo = self.userInfo;
     }
-    
-    
 }
 
 // *************************************
@@ -193,13 +208,97 @@
 {
     // *** ユーザーIDを元にリストを取得 ***
     // サーバーにリクエストを送信
-    NSString *publicList = @"[{\"userid\":\"1\", \"taskId\":\"1\", \"title\":\"犬の散歩\", \"limit\": \"2014年1月11日\", \"memo\":\"hey\", \"public\":\"YES\", \"assistants\":[]},{\"userid\":\"1\", \"taskId\":\"2\", \"title\":\"そうじ\", \"limit\": \"2014年1月13日\", \"memo\":\"hey\", \"public\":\"YES\", \"assistants\":[]},{\"userid\":\"1\", \"taskId\":\"3\", \"title\":\"書類整理\", \"limit\": \"2014年1月11日\", \"memo\":\"hey\", \"public\":\"YES\", \"assistants\":[]},{\"userid\":\"1\", \"taskId\":\"4\", \"title\":\"ヨガ\", \"limit\": \"2014年1月11日\", \"memo\":\"hey\", \"public\":\"YES\", \"assistants\":[]},{\"userid\":\"1\", \"taskId\":\"5\", \"title\":\"スイミング\", \"limit\": \"2014年1月11日\", \"memo\":\"hey\", \"public\":\"YES\", \"assistants\":[]}]";
+    if ([self sendPublicTaskListRequest]) {
+        
+       
+        
+    }
     
-    // *** リストからタスクオブジェクトを生成 ***
-    NSData *taskData = [publicList dataUsingEncoding:NSUTF8StringEncoding];
-    NSError *error;
-    publicTasks = [NSJSONSerialization JSONObjectWithData:taskData options:NSJSONReadingAllowFragments error:&error];
+    
 }
+
+
+// **************************************
+//     公開タスクリスト取得リスエストを送信
+// **************************************
+- (BOOL)sendPublicTaskListRequest
+{
+    __block BOOL result = YES;
+    
+    // *** ダイアログを表示 ***
+    MBProgressHUD *progress = [[MBProgressHUD alloc]initWithView:self.view];
+    [progress setLabelText:@"アシスト中..."];
+    [self.view addSubview:progress];
+    [progress show:YES];
+    
+    
+    NSURLRequest *request = [self createPublicTaskListRequest];
+    AsyncURLConnection *conn = [[AsyncURLConnection alloc]initWithRequest:request timeoutSec:TIMEOUT_INTERVAL completeBlock:^(id conn, NSData *data) {
+        
+        // *** ダイアログを隠す ***
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        // *** レスポンスをチェック ***
+        NSDictionary *response = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
+        NSLog(@"response: %@", response);
+        if (![[response objectForKey:@"errorCode"]isEqualToString:NO_ERROR]) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ユーザー情報" message:@"ユーザー情報の取得に失敗しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+            result = NO;
+            return ;
+        }
+        
+        publicTasks = [response objectForKey:@"tasks"];
+        
+        
+    } progressBlock:nil errorBlock:^(id conn, NSError *error) {
+        
+        // *** ダイアログを隠す ***
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        
+        // タイムアウトが発生
+        if ( error.code==NSURLErrorTimedOut ) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"タイムアウトが発生しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        // 通信エラー
+        else {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"通信エラーが発生しました。通信環境の良い場所で再度お試しください。。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        
+    }];
+    
+    
+    [conn performRequest];
+    [conn join];
+    
+    return result;
+}
+
+// **************************************
+//     公開タスクリスト取得リスエストを作成
+// **************************************
+- (NSURLRequest *)createPublicTaskListRequest
+{
+    // リクエストURLを設定
+    NSURL *url = [[NSURL alloc]initWithString:PPLIST_API];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    
+    
+    // メソッドを設定
+    [request setHTTPMethod:@"POST"];
+    
+    // パラメータを設定
+    NSString *body = [NSString stringWithFormat:@"userId=%@", [self.userInfo objectForKey:USER_PROP_ID]];
+    [request setHTTPBody:[body dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    return request;
+}
+
 
 //- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 //{
@@ -267,5 +366,45 @@
 // *************************************
 - (IBAction)gobackToPrevView:(id)sender {
     [self.navigationController popViewControllerAnimated:YES];
+}
+
+// *************************************
+//              電話をかける
+// *************************************
+- (IBAction)call:(id)sender {
+    NSLog(@"%@", [self.userInfo objectForKey:@"phone"]);
+    if ([[self.userInfo objectForKey:@"phone"] isEqualToString:@"none"]) {
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"電話" message:@"電話番号が登録されていません" delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+        [alert show];
+        
+        return ;
+    }
+    NSString *phoneNum = [self.userInfo objectForKey:@"phone"];
+    if (!phoneNum)
+        return ;
+    NSURL *phone = [NSURL URLWithString:[NSString stringWithFormat:@"tel://%@", phoneNum]];
+    [[UIApplication sharedApplication]openURL:phone];
+    
+}
+
+
+// *************************************
+//              メールを開く
+// *************************************
+- (IBAction)chat:(id)sender {
+    
+    if ([[self.userInfo objectForKey:@"mail"] isEqualToString:@"none"]) {
+        
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"メール" message:@"メールアドレスが登録されていません" delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+        [alert show];
+        
+        return ;
+    }
+    
+    NSString *mailAddr = [self.userInfo objectForKey:@"mail"];
+    if (!mailAddr)
+        return ;
+    NSURL *mail = [NSURL URLWithString:[NSString stringWithFormat:@"mailto://%@", mailAddr]];
+    [[UIApplication sharedApplication]openURL:mail];
 }
 @end

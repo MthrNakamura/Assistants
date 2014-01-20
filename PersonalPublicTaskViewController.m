@@ -10,6 +10,7 @@
 #import "PersonalPublicTaskCell.h"
 #import "PublicTasksViewController.h"
 #import "PersonalPublicTaskDetailViewController.h"
+#import "TopViewController.h"
 
 @interface PersonalPublicTaskViewController ()
 
@@ -33,17 +34,29 @@
 {
     [super viewDidLoad];
 
+    // テーブルビューの背景を設定
+    self.tableView.backgroundView = [[UIImageView alloc]initWithImage:[UIImage imageNamed:@"background1.jpg"]];
+    
     // Uncomment the following line to preserve selection between presentations.
     // self.clearsSelectionOnViewWillAppear = NO;
  
     // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
     // self.navigationItem.rightBarButtonItem = self.editButtonItem;
     
+    // タブバーデリゲートの設定
+    //self.tabBarController.delegate = self;
+    
     // ナビゲーションバーのタイトルを設定
-    NSString *userName = [self.userInfo objectForKey:@"name"];
-    [self.navigationItem setTitle:[NSString stringWithFormat:@"%@の公開タスク一覧", userName]];
+    [self.navigationItem setTitle:@"公開タスク一覧"];
 }
 
+// **************************************
+//          ビューが切り替わった時
+// **************************************
+//- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+//{
+//    NSLog(@"switched");
+//}
 
 - (void)didReceiveMemoryWarning
 {
@@ -81,7 +94,7 @@
     
     // Configure the cell...
     // タイトルを設定
-    cell.taskTitle.text = [[self.tasks objectAtIndex:indexPath.row] objectForKey:KEY_TITLE];
+    cell.taskTitle.text = [[self.tasks objectAtIndex:indexPath.row] objectForKey:TASK_TITLE];
     
     
     return cell;
@@ -100,6 +113,8 @@
 // *************************************
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
+
+    
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 

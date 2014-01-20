@@ -7,6 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "AppDelegate.h"
 
 #define SECTION_USER 0
 #define SECTION_TASK 1
@@ -18,10 +19,11 @@
 
 @interface OpenTaskDetailViewController : UITableViewController <UIAlertViewDelegate> {
     BOOL showingAssistAlert;
+    AppDelegate *delegate;
 }
 
-@property (strong, nonatomic) NSDictionary *taskData;
-@property (strong, nonatomic) NSDictionary *userData;
+@property (strong, nonatomic) NSMutableDictionary *taskData;
+@property (strong, nonatomic) NSMutableDictionary *userData;
 
 @property (strong, nonatomic) IBOutlet UIImageView *userImage;
 @property (strong, nonatomic) IBOutlet UILabel *userName;

@@ -8,15 +8,17 @@
 
 #import <UIKit/UIKit.h>
 
-#define ASSISTANTS_CELL_ID @"AssistantCell"
 
-@interface AssistantsViewController : UITableViewController
+
+@interface AssistantsViewController : UITableViewController <UITableViewDelegate, UITableViewDataSource> {
+    NSMutableArray *assistantsArray;
+    NSDictionary *tempData;
+}
 
 
 @property (strong, nonatomic) NSMutableDictionary *task;
 
-@property (strong, nonatomic) IBOutlet UIImageView *assistantImage;
-@property (strong, nonatomic) IBOutlet UILabel *assistantName;
+
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *btnEdit;
 
 

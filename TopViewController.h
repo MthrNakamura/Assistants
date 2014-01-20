@@ -11,11 +11,12 @@
 
 
 // --- タスクオブジェクトのキー ---
-#define TASK_TITLE      @"task_title"
-#define TASK_LIMIT      @"task_limit"
-#define TASK_MEMO       @"task_memo"
-#define TASK_PUBLIC     @"task_public"
-#define NUM_ASSISTANTS  @"num_assistants"
+#define TASK_TITLE      @"title"
+#define TASK_LIMIT      @"time"
+#define TASK_MEMO       @"memo"
+#define TASK_PUBLIC     @"open"
+#define TASK_ID         @"taskId"
+#define TASK_ASSISTANTS @"assistants"
 
 @interface TopViewController : UIViewController <UITableViewDataSource, UITableViewDelegate> {
     AppDelegate *delegate;
@@ -33,6 +34,7 @@
 - (IBAction)startEditing:(id)sender;
 - (IBAction)finishEditting:(id)sender;
 - (IBAction)editAndDone:(id)sender;
+
 
 - (void)addNewAssistants;
 - (void)appendNewTask:(NSString *)taskTitle;

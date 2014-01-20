@@ -14,13 +14,14 @@
 #define SECTION_ACCOUNT 0
 #define SECTION_VERSION 1
 
-#define NUM_CELLS_IN_ACCOUNT 2
+#define NUM_CELLS_IN_ACCOUNT 1
 #define NUM_CELLS_IN_VERSION 1
 
 #define ROW_OF_LOGOUT 1
 
-@interface ConfigViewController : UITableViewController
+@interface ConfigViewController : UITableViewController <UINavigationControllerDelegate>
 
+- (void)gotoLoginView;
 
 @property (strong, nonatomic) IBOutlet UILabel *nameLabel;
 @property (strong, nonatomic) IBOutlet UILabel *versionLabel;

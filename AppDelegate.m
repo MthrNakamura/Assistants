@@ -1,67 +1,43 @@
 //
 //  AppDelegate.m
-//  Assistants
+//  Test
 //
-//  Created by MotohiroNAKAMURA on 2013/12/21.
-//  Copyright (c) 2013年 com.self.planningdev. All rights reserved.
+//  Created by MotohiroNAKAMURA on 2014/01/01.
+//  Copyright (c) 2014年 com.self.planningdev. All rights reserved.
 //
 
 #import "AppDelegate.h"
-#import "FMDatabase.h"
 
-#import <FacebookSDK/FacebookSDK.h>
-
-
-#define kFacebookAPIKey @"761593323870189"
-#define kFacebookSecretKey @"3fb615def99939ee56947f1359df2de6"
+#import <FacebookSDK/FBSessionTokenCachingStrategy.h>
 
 @implementation AppDelegate
 
+@synthesize numTasks;
 @synthesize tasks;
-@synthesize db;
-
+//@synthesize db;
+@synthesize user;
+@synthesize assistingTask;
+@synthesize assistingUser;
+@synthesize hasAssisted;
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+    self.assistingTask = [[NSMutableArray alloc]init];
+    self.assistingUser = [[NSMutableArray alloc]init];
+    self.hasAssisted = NO;
     // Override point for customization after application launch.
-    
-    // *** FB OOathの設定 ***/
     [FBLoginView class];
     
-    // Whenever a person opens the app, check for a cached session
-//    if (FBSession.activeSession.state == FBSessionStateCreatedTokenLoaded) {
-//        
-//        // If there's one, just open the session silently, without showing the user the login UI
-//        [FBSession openActiveSessionWithReadPermissions:@[@"basic_info"]
-//                                           allowLoginUI:NO
-//                                      completionHandler:^(FBSession *session, FBSessionState state, NSError *error) {
-//                                          // Handler for session state changes
-//                                          // This method will be called EACH time the session state changes,
-//                                          // also for intermediate states and NOT just when the session open
-//                                      }];
+    self.user = nil;
+    // Facebook SDK * pro-tip *
+    // We take advantage of the `FBLoginView` in our loginViewController, which can
+    // automatically open a session if there is a token cached. If we were not using
+    // that control, this location would be a good place to try to open a session
+    // from a token cache.
     
-    
-    // *** SQLite DBの設定 ***
-    // DBファイルのパス
-    NSArray *paths = NSSearchPathForDirectoriesInDomains( NSDocumentDirectory, NSUserDomainMask, YES );
-    NSString *dir   = [paths objectAtIndex:0];
-    // DBファイルがあるか確認
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    if (![fileManager fileExistsAtPath:[dir stringByAppendingPathComponent:@"assistants.db"]])
-    {
-        // なければ新規作成
-        db = [FMDatabase databaseWithPath:[dir stringByAppendingPathComponent:@"assistants.db"]];
-        
-        // テーブルを作成
-        NSString *sql = @"CREATE TABLE task (task_title TEXT NOT NULL,task_memo TEXT NULL,task_limit VARCHAR(45) NULL,PRIMARY KEY task_title, assistants TEXT NULL);";
-        [db open];
-        [db executeUpdate:sql];
-        [db close];
-    }
-
     return YES;
 }
-							
+
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
@@ -70,7 +46,7 @@
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later. 
+    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
     // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
 }
 
@@ -82,11 +58,13 @@
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    [FBAppCall handleDidBecomeActive];
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application
 {
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    [FBSession.activeSession close];
 }
 
 - (BOOL)application:(UIApplication *)application
@@ -94,12 +72,40 @@
   sourceApplication:(NSString *)sourceApplication
          annotation:(id)annotation {
     
-    // Call FBAppCall's handleOpenURL:sourceApplication to handle Facebook app responses
-    BOOL wasHandled = [FBAppCall handleOpenURL:url sourceApplication:sourceApplication];
-    
-    // You can add your app-specific url handling code here if needed
-    
-    return wasHandled;
+    // Facebook SDK * login flow *
+    // Attempt to handle URLs to complete any auth (e.g., SSO) flow.
+    return [FBAppCall handleOpenURL:url sourceApplication:sourceApplication fallbackHandler:^(FBAppCall *call) {
+        // Facebook SDK * App Linking *
+        // For simplicity, this sample will ignore the link if the session is already
+        // open but a more advanced app could support features like user switching.
+        if (call.accessTokenData) {
+            if ([FBSession activeSession].isOpen) {
+                NSLog(@"INFO: Ignoring app link because current session is open.");
+            }
+            else {
+                [self handleAppLink:call.accessTokenData];
+            }
+        }
+    }];
+}
+
+// Helper method to wrap logic for handling app links.
+- (void)handleAppLink:(FBAccessTokenData *)appLinkToken {
+    // Initialize a new blank session instance...
+    FBSession *appLinkSession = [[FBSession alloc] initWithAppID:nil
+                                                     permissions:nil
+                                                 defaultAudience:FBSessionDefaultAudienceNone
+                                                 urlSchemeSuffix:nil
+                                              tokenCacheStrategy:[FBSessionTokenCachingStrategy nullCacheInstance] ];
+    [FBSession setActiveSession:appLinkSession];
+    // ... and open it from the App Link's Token.
+    [appLinkSession openFromAccessTokenData:appLinkToken
+                          completionHandler:^(FBSession *session, FBSessionState status, NSError *error) {
+                              // Forward any errors to the FBLoginView delegate.
+                              if (error) {
+                                  
+                              }
+                          }];
 }
 
 @end

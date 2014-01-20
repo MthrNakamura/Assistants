@@ -10,6 +10,10 @@
 #import "TopViewController.h"
 #import "AssistantsViewController.h"
 
+#import "AsyncURLConnection.h"
+
+#import "MBProgressHUD.h"
+
 @interface TaskDetailViewController ()
 
 @end
@@ -33,22 +37,27 @@
     [super viewDidLoad];
 
     // delegateを取得
-    delegate = [UIApplication sharedApplication].delegate;
+    delegate = (AppDelegate *)[UIApplication sharedApplication].delegate;
     
     // DatePickerを閉じる
     isOpenedDatePicker = NO;
     
+    // タブバーデリゲートの設定
+    //self.tabBarController.delegate = self;
+    
     // タイトルを設定
-    self.navigationItem.title = [taskData objectForKey:TASK_TITLE];
+    self.navigationItem.title = [self.taskData objectForKey:TASK_TITLE];
     
     // 期限を設定
-    self.dateLabel.text = [taskData objectForKey:TASK_LIMIT];
+    self.dateLabel.text = ([[taskData objectForKey:TASK_LIMIT] isEqualToString:@"none"])? @"期限指定なし":(NSString *)[taskData objectForKey:TASK_LIMIT];
     
     // メモを設定
     self.memoField.text = [taskData objectForKey:TASK_MEMO];
     self.memoField.delegate = self;
     // メモの編集完了ボタンを無効化
+    self.btnDoneEditting.title = @"";
     [self.btnDoneEditting setEnabled:NO];
+    editingMemo = NO;
     
     
     // 公開設定
@@ -62,7 +71,23 @@
         [self.assistantsBtn setEnabled:NO];
         [self.assistantsBtn setHidden:YES];
     }
+    
+    showingAlert = NO;
+    
+    // 編集されたかどうか
+    isEdited = NO;
+    // 右上の保存ボタンを無効化
+//    self.saveBtn.title = @"";
+//    [self.saveBtn setEnabled:NO];
 }
+
+// **************************************
+//          ビューが切り替わった時
+// **************************************
+//- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+//{
+//    NSLog(@"switched");
+//}
 
 - (void)didReceiveMemoryWarning
 {
@@ -99,6 +124,7 @@
             if (![[self.taskData objectForKey:TASK_PUBLIC]boolValue]) {
                 [alert setMessage:@"タスクを公開に設定しますか"];
             }
+            showingAlert = YES;
             [alert show];
             
             break;
@@ -174,28 +200,44 @@
 // ************************************
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {
+    
+    if (!showingAlert)
+        return ;
+    
     // はい
     if (buttonIndex == 1) {
         if ([[self.taskData objectForKey:TASK_PUBLIC] boolValue]) {
             // 公開の状態で「はい」→ 非公開
+            // *** 表示を切り替え ***
             [self.taskData setValue:[NSNumber numberWithBool:NO] forKey:TASK_PUBLIC];
             self.publicLabel.text = @"非公開";
             [self.assistantsBtn setHidden:YES];
             [self.assistantsBtn setEnabled:NO];
+            
+            // 保存ボタンを表示
+            isEdited = YES;
+            [self.btnDoneEditting setTitle:@"保存"];
+            [self.btnDoneEditting setEnabled:YES];
         }
         else {
             // 非公開の状態で「はい」→ 公開
+            // *** 表示を切り替え ***
             [self.taskData setValue:[NSNumber numberWithBool:YES] forKey:TASK_PUBLIC];
             self.publicLabel.text = @"公開";
             [self.assistantsBtn setHidden:NO];
             [self.assistantsBtn setEnabled:YES];
+            
+            // 保存ボタンを表示
+            isEdited = YES;
+            [self.btnDoneEditting setTitle:@"保存"];
+            [self.btnDoneEditting setEnabled:YES];
         }
     }
 }
 
 
 // ************************************
-//          メモの編集を開始
+//          画面遷移イベント
 // ************************************
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
@@ -208,6 +250,7 @@
         assistantsView.task = [delegate.tasks objectAtIndex:self.taskIndex];
         
     }
+
 }
 
 
@@ -218,6 +261,7 @@
 // ************************************
 - (BOOL)textViewShouldBeginEditing:(UITextView *)textView
 {
+    editingMemo = YES;
     [self.btnDoneEditting setTitle:@"完了"];
     [self.btnDoneEditting setEnabled:YES];
     return YES;
@@ -228,12 +272,40 @@
 //          メモの編集を終了
 // ************************************
 - (IBAction)doneEditing:(id)sender {
-    // キーボードを閉じる
-    [self.memoField resignFirstResponder];
     
-    // 完了ボタンを隠す
-    [self.btnDoneEditting setTitle:@""];
-    [self.btnDoneEditting setEnabled:NO];
+    // メモの編集中だったらキーボードを閉じて完了ボタンを変更
+    if (editingMemo) {
+        // キーボードを閉じる
+        [self.memoField resignFirstResponder];
+        
+        isEdited = YES;
+        [self.btnDoneEditting setTitle:@"保存"];
+        editingMemo = NO;
+        
+//        if (isEdited) {
+//            [self.btnDoneEditting setTitle:@"保存"];
+//        }
+//        else {
+//            // 完了ボタンを隠す
+//            [self.btnDoneEditting setTitle:@""];
+//            [self.btnDoneEditting setEnabled:NO];
+//            editingMemo = NO;
+//        }
+    }
+    else if (isEdited) {
+        // 変更を保存
+        NSMutableDictionary *tasks = [[delegate.tasks objectAtIndex:self.taskIndex] mutableCopy];
+        [tasks setValue:self.dateLabel.text forKey:TASK_LIMIT];
+        [tasks setValue:self.memoField.text forKey:TASK_MEMO];
+        [tasks setValue:[self.taskData objectForKey:TASK_PUBLIC] forKey:TASK_PUBLIC];
+        [delegate.tasks replaceObjectAtIndex:self.taskIndex withObject:tasks];
+        
+        if ([self sendChange:tasks]) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"変更の保存" message:@"変更を保存しました。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+    }
+    
 }
 
 // ************************************
@@ -241,10 +313,15 @@
 // ************************************
 - (IBAction)didSelectedLimitDate:(id)sender {
     
+    // 保存ボタンを有効化
+    isEdited = YES;
+    self.btnDoneEditting.title = @"保存";
+    [self.btnDoneEditting setEnabled:YES];
+    
     // 選択した日付を取得
     NSDate *limitDate = [self.datePicker date];
     NSDateFormatter *df = [[NSDateFormatter alloc]init];
-    [df setDateFormat:@"yyyy年MM月dd日 HH時mm分"];
+    [df setDateFormat:@"yyyy/MM/dd/ HH:mm"];
     
     // 選択した日付を設定
     self.dateLabel.text = [df stringFromDate:limitDate];
@@ -257,16 +334,100 @@
 // ************************************
 - (IBAction)gobackToTopView:(id)sender
 {
-    NSMutableDictionary *tasks = [delegate.tasks objectAtIndex:self.taskIndex];
+    // *** タスクの変更内容を保存 ***
+    NSLog(@"%@", self.taskData);
+    NSMutableDictionary *tasks = [[delegate.tasks objectAtIndex:self.taskIndex] mutableCopy];
     [tasks setValue:self.dateLabel.text forKey:TASK_LIMIT];
     [tasks setValue:self.memoField.text forKey:TASK_MEMO];
     [tasks setValue:[self.taskData objectForKey:TASK_PUBLIC] forKey:TASK_PUBLIC];
     [delegate.tasks replaceObjectAtIndex:self.taskIndex withObject:tasks];
     
     
-    // TopViewに戻る
-    [self.navigationController popViewControllerAnimated:YES];
+    // *** サーバーに変更内容を送信 ***
+    if ([self sendChange:tasks]) {
+        // TopViewに戻る
+        [self.navigationController popViewControllerAnimated:YES];
+    }
     
+}
+
+
+// ************************************
+//         変更内容を送信
+// ************************************
+- (BOOL)sendChange:(NSMutableDictionary *)task
+{
+    __block BOOL result = YES;
+    
+    // プログレスバーを表示
+    MBProgressHUD *progress = [[MBProgressHUD alloc]initWithView:self.view];
+    progress.labelText = @"更新中...";
+    [self.view addSubview:progress];
+    [progress show:YES];
+
+    
+    NSURLRequest *request = [self createChangeRequest:task];
+    
+    AsyncURLConnection *conn = [[AsyncURLConnection alloc]initWithRequest:request timeoutSec:TIMEOUT_INTERVAL completeBlock:^(id conn, NSData *data) {
+        
+        // プログレスバーを隠す
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        NSDictionary *response = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
+        if (![[response objectForKey:@"errorCode"]isEqualToString:NO_ERROR]) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"タスク更新" message:@"タスクの更新に失敗しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+            result = NO;
+        }
+        NSLog(@"%@", response);
+        
+    } progressBlock:nil errorBlock:^(id conn, NSError *error) {
+    
+        // プログレスバーを隠す
+        [progress show:NO];
+        [progress removeFromSuperview];
+        
+        // タイムアウトが発生
+        if ( error.code==NSURLErrorTimedOut ) {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"タイムアウトが発生しました。再度お試しください。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        // 通信エラー
+        else {
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"ログイン" message:@"通信エラーが発生しました。通信環境の良い場所で再度お試しください。。" delegate:self cancelButtonTitle:@"はい" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+        result = NO;
+        
+    }];
+    
+    
+    [conn performRequest];
+    [conn join];
+    
+    return result;
+}
+
+
+// ************************************
+//       タスク変更のリクエストを作成
+// ************************************
+- (NSURLRequest *)createChangeRequest:(NSMutableDictionary *)task
+{
+    
+    // リクエストURLを設定
+    NSURL *url = [[NSURL alloc]initWithString:UPDATE_API];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    
+    // メソッドを設定
+    [request setHTTPMethod:@"POST"];
+    
+    // パラメータを設定
+    NSString *body = [NSString stringWithFormat:@"time=%@&memo=%@&open=%@&taskId=%@", [task objectForKey:TASK_LIMIT], [task objectForKey:TASK_MEMO], [task objectForKey:TASK_PUBLIC], [task objectForKey:TASK_ID]];
+    [request setHTTPBody:[body dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    return request;
 }
 
 @end

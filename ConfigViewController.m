@@ -7,6 +7,7 @@
 //
 
 #import "ConfigViewController.h"
+#import "LoginViewController.h"
 
 @interface ConfigViewController ()
 
@@ -27,12 +28,29 @@
 {
     [super viewDidLoad];
 
+    // テーブルビューの背景を設定
+    self.tableView.backgroundView = [[UIImageView alloc]initWithImage:[UIImage imageNamed:@"background1.jpg"]];
+    
     // Uncomment the following line to preserve selection between presentations.
     // self.clearsSelectionOnViewWillAppear = NO;
  
     // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
     // self.navigationItem.rightBarButtonItem = self.editButtonItem;
+    
+    // タブバーデリゲートの設定
+    //self.tabBarController.delegate = self;
+    
+    
+    self.navigationController.delegate = self;
 }
+
+// **************************************
+//          ビューが切り替わった時
+// **************************************
+//- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+//{
+//    NSLog(@"switched");
+//}
 
 - (void)didReceiveMemoryWarning
 {
@@ -79,22 +97,41 @@
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
     
-    switch (indexPath.section) {
-        case SECTION_ACCOUNT:
-            
-            // *** ログアウトを実行 ***
-            if (indexPath.row == ROW_OF_LOGOUT) {
-                
-            }
-            
-            break;
-            
-        default:
-            break;
-    }
+//    switch (indexPath.section) {
+//        case SECTION_ACCOUNT:
+//            
+//            // *** ログアウトを実行 ***
+//            if (indexPath.row == ROW_OF_LOGOUT) {
+//                // ログアウト処理
+//                [self gotoLoginView];
+//            }
+//            
+//            break;
+//            
+//        default:
+//            break;
+//    }
     
 }
 
+
+// ***************************************
+//              ログインビューに戻る
+// ***************************************
+- (void)gotoLoginView
+{
+    [self setLogedInStatus:NO];
+    LoginViewController *loginView = [self.storyboard instantiateViewControllerWithIdentifier:@"LoginView"];
+    [self presentViewController:loginView animated:YES completion:nil];
+}
+
+// ***************************************
+//              ログイン状態を保存
+// ***************************************
+- (void)setLogedInStatus:(BOOL)status {
+    [[NSUserDefaults standardUserDefaults] setBool:status forKey:LOGIN_STATUS_KEY];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
 
 //- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 //{
@@ -157,4 +194,8 @@
 
  */
 
+- (void)navigationController:(UINavigationController *)navigationController willShowViewController:(UIViewController *)viewController animated:(BOOL)animated
+{
+    NSLog(@"hello");
+}
 @end

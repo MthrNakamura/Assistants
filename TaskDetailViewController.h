@@ -31,6 +31,9 @@
 @interface TaskDetailViewController : UITableViewController <UIAlertViewDelegate, UITextViewDelegate> {
     AppDelegate *delegate;
     BOOL isOpenedDatePicker;
+    BOOL isEdited;
+    BOOL editingMemo;
+    BOOL showingAlert;
 }
 
 @property (strong, nonatomic) NSMutableDictionary *taskData;
@@ -49,6 +52,7 @@
 - (IBAction)doneEditing:(id)sender;
 - (IBAction)didSelectedLimitDate:(id)sender;
 - (IBAction)gobackToTopView:(id)sender;
+
 
 
 @end

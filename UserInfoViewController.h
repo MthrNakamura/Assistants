@@ -23,7 +23,6 @@
 
 @interface UserInfoViewController : UITableViewController {
     NSMutableArray *publicTasks;
-    NSUInteger numOtherTasks;
 }
 
 @property (strong, nonatomic) NSDictionary *userInfo;
@@ -34,6 +33,10 @@
 @property (strong, nonatomic) IBOutlet UITextField *skill2;
 @property (strong, nonatomic) IBOutlet UITextField *skill3;
 @property (strong, nonatomic) IBOutlet UITextView *detailField;
+@property (strong, nonatomic) IBOutlet UIButton *btnCall;
+@property (strong, nonatomic) IBOutlet UIButton *btnChat;
+
+
 
 @property (strong, nonatomic) IBOutlet UILabel *otherTask1;
 @property (strong, nonatomic) IBOutlet UILabel *otherTask2;
@@ -44,5 +47,6 @@
 //- (void)transOtherTaskDetailView;
 
 - (IBAction)gobackToPrevView:(id)sender;
-
+- (IBAction)call:(id)sender;
+- (IBAction)chat:(id)sender;
 @end

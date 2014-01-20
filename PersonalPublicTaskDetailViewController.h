@@ -8,6 +8,8 @@
 
 #import <UIKit/UIKit.h>
 
+#import "AppDelegate.h"
+
 #define NUM_SECTIONS_IN_PPTDVIEW 2
 
 #define SECTION_USER_PPTD 0
@@ -15,10 +17,11 @@
 
 
 #define NUM_CELLS_IN_USER 1
-#define NUM_CELLS_IN_TASK 3
+#define NUM_CELLS_IN_TASK_PPTD 3
 
 @interface PersonalPublicTaskDetailViewController : UITableViewController <UIAlertViewDelegate> {
     BOOL showingAlert;
+    AppDelegate *delegate;
 }
 
 @property (strong, nonatomic) NSDictionary *taskData;

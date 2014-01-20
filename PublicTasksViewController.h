@@ -8,7 +8,7 @@
 
 #import <UIKit/UIKit.h>
 
-#define KEY_USER_ID     @"userid"
+#define KEY_USER_ID     @"userId"
 #define KEY_TITLE       @"title"
 #define KEY_LIMIT       @"limit"
 #define KEY_MEMO        @"memo"
@@ -22,15 +22,13 @@
 
 @interface PublicTasksViewController : UITableViewController <UIAlertViewDelegate> {
     NSMutableArray *publicTasks;
-    NSDictionary *tempData;
-    NSMutableArray *userDatas;
+    UIRefreshControl *refresh;
 }
 
 @property int publicTaskType;
 @property (strong, nonatomic) NSString *userId;
 
 - (BOOL)getPublicTaskList;
-- (void)createTableFromList;
-- (NSDictionary *)getUserDataFromUserId:(NSString *)userId;
+- (IBAction)updatePublickTaskList:(id)sender;
 
 @end

@@ -10,6 +10,8 @@
 
 #define NUM_SECTIONS_IN_PPTVIEW 1
 
+#define SECTION_OTHER_TASKS 3
+
 @interface PersonalPublicTaskViewController : UITableViewController
 
 @property (strong, nonatomic) NSMutableArray *tasks;

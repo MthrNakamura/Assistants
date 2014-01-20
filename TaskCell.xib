@@ -20,9 +20,6 @@
                         <state key="normal" title="Button" image="checkbox_blank.png">
                             <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
                         </state>
-                        <connections>
-                            <action selector="checkedTask:" destination="cTq-uo-4cC" eventType="touchUpInside" id="mgi-GQ-TeV"/>
-                        </connections>
                     </button>
                     <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Label" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="q1l-kX-U1s">
                         <rect key="frame" x="53" y="15" width="247" height="21"/>
